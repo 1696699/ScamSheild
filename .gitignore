@@ -1,0 +1,3 @@
+__pycache__/
+*.py[cod]
+data/screening_feedback.jsonl

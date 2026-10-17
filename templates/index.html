@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#f3f6f1">
+    <title>ScamSheild | SMS screen</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <script src="{{ url_for('static', filename='app.js') }}" defer></script>
+  </head>
+  <body>
+    <header class="topbar">
+      <a class="wordmark" href="/" aria-label="ScamSheild home">
+        <span class="wordmark-mark" aria-hidden="true">S</span>
+        <span>ScamSheild</span>
+      </a>
+      <div class="model-status"><span class="status-dot"></span> SMS model ready</div>
+    </header>
+
+    <main>
+      <section class="intro" aria-labelledby="page-title">
+        <p class="eyebrow">MESSAGE CHECK <span> / </span> 01</p>
+        <h1 id="page-title">A second look<br>at that text.</h1>
+        <p class="intro-copy">Paste a suspicious SMS below. The model looks for patterns associated with spam and gives you a screening signal.</p>
+      </section>
+
+      <div class="workspace-grid">
+        <section class="screening" aria-labelledby="form-title">
+          <div class="section-heading">
+            <h2 id="form-title">Message to screen</h2>
+            <span class="input-limit">UP TO 5,000 CHARACTERS</span>
+          </div>
+          <form id="screen-form">
+            <label class="visually-hidden" for="message">Paste the SMS message</label>
+            <textarea id="message" name="message" maxlength="5000" placeholder="Paste the message here..." required></textarea>
+            <div class="form-footer">
+              <span id="character-count" class="character-count">0 / 5,000</span>
+              <div class="form-actions">
+                <button id="generate-button" class="secondary-button" type="button">Generate test message</button>
+                <button id="screen-button" type="submit">Screen message <span aria-hidden="true">&#8594;</span></button>
+              </div>
+            </div>
+            <p id="generation-status" class="generation-status" aria-live="polite"></p>
+          </form>
+
+          <section id="result" class="result" aria-live="polite" aria-atomic="true" hidden>
+            <div class="result-topline">
+              <span id="result-kicker" class="result-kicker">SCREENING RESULT</span>
+              <span id="result-indicator" class="result-indicator" aria-hidden="true"></span>
+            </div>
+            <h2 id="verdict">Result</h2>
+            <p id="result-detail" class="result-detail"></p>
+            <div class="score-row">
+              <span>Model spam score</span>
+              <strong id="score-value">0%</strong>
+            </div>
+            <div class="score-row">
+              <span>Decision cutoff</span>
+              <strong id="threshold-value">45%</strong>
+            </div>
+            <div class="score-track" role="progressbar" aria-label="Model spam score" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+              <span id="score-fill"></span>
+            </div>
+            <p class="result-caveat">This score is not a probability of fraud or a guarantee. Verify unexpected requests through a trusted channel.</p>
+            <div id="feedback-panel" class="feedback-panel" hidden>
+              <h3>Was this message actually fraudulent?</h3>
+              <p>Your rating retrains the local classifier immediately. The message is saved locally; incorrect labels can reduce accuracy.</p>
+              <div class="feedback-actions">
+                <button class="feedback-choice" type="button" data-status="fraud">Yes, fraudulent</button>
+                <button class="feedback-choice" type="button" data-status="legitimate">No, legitimate</button>
+              </div>
+              <p id="feedback-status" class="feedback-status" aria-live="polite"></p>
+            </div>
+          </section>
+        </section>
+
+        <aside class="model-notes" aria-labelledby="notes-title">
+          <p class="eyebrow">BEFORE YOU RELY ON IT</p>
+          <h2 id="notes-title">What this check can tell you</h2>
+          <p>This prototype uses a text classifier trained on the UCI SMS Spam Collection. It can spot familiar spam patterns, but it was not trained to detect every kind of fraud.</p>
+          <div class="note-rule"></div>
+          <h3>Keep your guard up</h3>
+          <p>A clean result does not make a link or payment request safe. Don’t paste passwords, one-time codes, or sensitive personal details. Verify urgent requests independently.</p>
+          <div class="dataset-mark"><span>MODEL</span><span>SMS SPAM / HAM</span></div>
+        </aside>
+      </div>
+    </main>
+
+    <footer class="page-footer">
+      <span>SCAMSHEILD <span aria-hidden="true">&middot;</span> MESSAGE SCREENING PROTOTYPE</span>
+      <span>Your message is processed locally by this app.</span>
+    </footer>
+  </body>
+</html>

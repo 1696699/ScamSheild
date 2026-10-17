@@ -1,0 +1,23 @@
+{
+  "training_rounds": 10,
+  "decision_threshold": 0.45,
+  "hard_training_examples_per_class": 10,
+  "hard_holdout_examples_per_class": 6,
+  "additional_simulator_holdout_examples_per_class": 20,
+  "uci_validation": "single stratified 80/20 split, random_state 42",
+  "candidate_model": "models/sms_spam_hard_candidate.joblib",
+  "promoted_to_active_model": false,
+  "rounds": [
+    {"round": 0, "hard_correct": 46, "hard_total": 52, "scams_caught": 25, "scams_total": 26, "legitimate_false_alarms": 5, "legitimate_total": 26, "balanced_score": 0.885, "uci_accuracy": 0.984, "uci_spam_precision": 0.940, "uci_spam_recall": 0.940},
+    {"round": 1, "hard_correct": 46, "hard_total": 52, "scams_caught": 25, "scams_total": 26, "legitimate_false_alarms": 5, "legitimate_total": 26, "balanced_score": 0.885, "uci_accuracy": 0.984, "uci_spam_precision": 0.940, "uci_spam_recall": 0.940},
+    {"round": 2, "hard_correct": 46, "hard_total": 52, "scams_caught": 25, "scams_total": 26, "legitimate_false_alarms": 5, "legitimate_total": 26, "balanced_score": 0.885, "uci_accuracy": 0.984, "uci_spam_precision": 0.940, "uci_spam_recall": 0.940},
+    {"round": 3, "hard_correct": 47, "hard_total": 52, "scams_caught": 26, "scams_total": 26, "legitimate_false_alarms": 5, "legitimate_total": 26, "balanced_score": 0.904, "uci_accuracy": 0.984, "uci_spam_precision": 0.940, "uci_spam_recall": 0.940},
+    {"round": 4, "hard_correct": 47, "hard_total": 52, "scams_caught": 26, "scams_total": 26, "legitimate_false_alarms": 5, "legitimate_total": 26, "balanced_score": 0.904, "uci_accuracy": 0.984, "uci_spam_precision": 0.940, "uci_spam_recall": 0.940},
+    {"round": 5, "hard_correct": 48, "hard_total": 52, "scams_caught": 26, "scams_total": 26, "legitimate_false_alarms": 4, "legitimate_total": 26, "balanced_score": 0.923, "uci_accuracy": 0.983, "uci_spam_precision": 0.933, "uci_spam_recall": 0.940},
+    {"round": 6, "hard_correct": 48, "hard_total": 52, "scams_caught": 26, "scams_total": 26, "legitimate_false_alarms": 4, "legitimate_total": 26, "balanced_score": 0.923, "uci_accuracy": 0.983, "uci_spam_precision": 0.933, "uci_spam_recall": 0.940},
+    {"round": 7, "hard_correct": 48, "hard_total": 52, "scams_caught": 26, "scams_total": 26, "legitimate_false_alarms": 4, "legitimate_total": 26, "balanced_score": 0.923, "uci_accuracy": 0.983, "uci_spam_precision": 0.933, "uci_spam_recall": 0.940},
+    {"round": 8, "hard_correct": 48, "hard_total": 52, "scams_caught": 26, "scams_total": 26, "legitimate_false_alarms": 4, "legitimate_total": 26, "balanced_score": 0.923, "uci_accuracy": 0.983, "uci_spam_precision": 0.933, "uci_spam_recall": 0.940},
+    {"round": 9, "hard_correct": 48, "hard_total": 52, "scams_caught": 26, "scams_total": 26, "legitimate_false_alarms": 4, "legitimate_total": 26, "balanced_score": 0.923, "uci_accuracy": 0.983, "uci_spam_precision": 0.933, "uci_spam_recall": 0.940},
+    {"round": 10, "hard_correct": 48, "hard_total": 52, "scams_caught": 26, "scams_total": 26, "legitimate_false_alarms": 4, "legitimate_total": 26, "balanced_score": 0.923, "uci_accuracy": 0.983, "uci_spam_precision": 0.933, "uci_spam_recall": 0.940}
+  ]
+}
