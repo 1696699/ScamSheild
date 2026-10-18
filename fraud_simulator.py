@@ -3,62 +3,86 @@
 import random
 from itertools import product
 
-FRAUD_OPENERS = (
-    "[FICTIONAL SERVICE] account notice:",
-    "[FICTIONAL COURIER] delivery update:",
-    "[FICTIONAL REWARDS CLUB] message:",
-    "[FICTIONAL BILLING TEAM] alert:",
-    "[FICTIONAL STREAMING APP] reminder:",
+SCAM_SERVICES = (
+    ("Morrowmere Parcel", "morrowmere-parcel.invalid"),
+    ("Bellwether Mobile", "bellwether-mobile.invalid"),
+    ("Cindercone Rewards", "cindercone-rewards.invalid"),
+    ("Larkspur Billing", "larkspur-billing.invalid"),
+    ("Pineglass Streaming", "pineglass-streaming.invalid"),
+    ("Willowmere Delivery", "willowmere-delivery.invalid"),
+    ("North Quay Utilities", "north-quay-utilities.invalid"),
+    ("Marble Finch Tickets", "marble-finch-tickets.invalid"),
+    ("Westmere Accounts", "westmere-accounts.invalid"),
+    ("Daybreak Wireless", "daybreak-wireless.invalid"),
 )
-FRAUD_EVENTS = (
-    "a package notice is waiting",
-    "an account setting needs review",
-    "a sample reward is available",
-    "an invoice detail needs attention",
-    "an unfamiliar sign-in was flagged",
+SCAM_EVENTS = (
+    "a delivery update is waiting",
+    "a service notice was added this morning",
+    "the monthly reward list has changed",
+    "a billing notice is ready to view",
+    "your account alert needs a quick review",
+    "one parcel detail changed after dispatch",
+    "an unusual sign-in notice was recorded",
+    "your entry was selected for a sample prize draw",
+    "the service status changed overnight",
+    "a final reminder is available before today's cutoff",
 )
-FRAUD_ACTIONS = (
-    "Review the fictional notice at [SAFE TEST LINK].",
-    "Check the sample details at [SAFE TEST LINK].",
-    "Open the placeholder account page at [SAFE TEST LINK].",
-    "Look over the mock alert at [SAFE TEST LINK].",
+SCAM_ACTIONS = (
+    "Details: {url}",
+    "Review the notice at {url}",
+    "More info here: {url}",
+    "The update is here: {url}",
 )
 
-LEGITIMATE_OPENERS = (
-    "[FICTIONAL COMMUNITY GROUP] reminder:",
-    "[FICTIONAL BOOK CLUB] update:",
-    "[FICTIONAL SPORTS TEAM] note:",
-    "[FICTIONAL CLINIC] appointment reminder:",
-    "[FICTIONAL FRIEND] message:",
+LEGITIMATE_SERVICES = (
+    ("Mossbank Book Circle", "mossbank-books.invalid"),
+    ("Foxglove Neighbourhood Club", "foxglove-neighbours.invalid"),
+    ("Copperfield Garden Group", "copperfield-garden.invalid"),
+    ("Bluefern Running Team", "bluefern-running.invalid"),
+    ("Maplewick Music Society", "maplewick-music.invalid"),
+    ("Pebblebrook Clinic", "pebblebrook-clinic.invalid"),
+    ("Sundial Community Hall", "sundial-hall.invalid"),
+    ("Thistlewood Chess Club", "thistlewood-chess.invalid"),
+    ("Birch Lantern Library", "birchlantern-library.invalid"),
+    ("Cloudberry Art Group", "cloudberry-art.invalid"),
 )
 LEGITIMATE_EVENTS = (
-    "the monthly planning meeting starts at 6 pm",
-    "the book-club selection is ready for discussion",
-    "practice will begin at the usual time",
-    "the picnic has moved to Saturday",
-    "your appointment is confirmed for Tuesday at 10 am",
+    "the monthly meeting starts at 6 pm as usual",
+    "practice has moved to the smaller hall tonight",
+    "your appointment is confirmed for Tuesday morning",
+    "the book discussion is now on Thursday",
+    "the picnic has moved to Saturday because of the weather",
+    "the library books are ready to collect",
+    "the choir will meet ten minutes later this week",
+    "the garden group is bringing tea after the talk",
+    "the match starts at the usual time on Sunday",
+    "the room booking is confirmed for next week",
 )
 LEGITIMATE_CLOSINGS = (
     "See you there.",
-    "Reply if you need the notes.",
-    "Thanks, see you soon.",
     "No reply needed.",
+    "Reply if you need the notes.",
+    "The usual details are at {url}.",
 )
 
 FRAUD_MESSAGES = tuple(
-    f"SIMULATED - DO NOT SEND: {opener} {event}. {action}"
-    for opener, event, action in product(FRAUD_OPENERS, FRAUD_EVENTS, FRAUD_ACTIONS)
+    f"{service}: {event}. "
+    f"{action.format(url=f'https://{domain}/notice')}"
+    for (service, domain), event, action in product(
+        SCAM_SERVICES, SCAM_EVENTS, SCAM_ACTIONS
+    )
 )
 LEGITIMATE_MESSAGES = tuple(
-    f"SIMULATED - DO NOT SEND: {opener} {event}. {closing}"
-    for opener, event, closing in product(
-        LEGITIMATE_OPENERS, LEGITIMATE_EVENTS, LEGITIMATE_CLOSINGS
+    f"{service}: {event}. "
+    f"{closing.format(url=f'https://{domain}/details')}"
+    for (service, domain), event, closing in product(
+        LEGITIMATE_SERVICES, LEGITIMATE_EVENTS, LEGITIMATE_CLOSINGS
     )
 )
 
 
 def generate_fraud_messages(count: int, seed: int = 42) -> list[str]:
-    """Return a deterministic, unique batch of simulated scam-like messages."""
+    """Return a deterministic, unique batch of fictional scam-like messages."""
     return _sample(FRAUD_MESSAGES, count, seed)
 
 

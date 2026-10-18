@@ -1,14 +1,24 @@
 import json
 import tempfile
 import unittest
+import warnings
 from pathlib import Path
-
-import joblib
 
 from app import create_app
 from fraud_battle import evaluate_battle, split_self_play_examples
 from fraud_simulator import generate_fraud_messages, generate_legitimate_messages
-from sms_spam import load_messages, load_reviewed_feedback, load_user_feedback, predict_messages, train
+from sms_spam import (
+    load_messages,
+    load_mendeley_messages,
+    load_multilingual_messages,
+    load_reviewed_feedback,
+    load_reviewed_nus_messages,
+    load_smishing_messages,
+    load_training_messages,
+    load_user_feedback,
+    predict_messages,
+    train,
+)
 
 
 class LoadMessagesTests(unittest.TestCase):
@@ -21,6 +31,147 @@ class LoadMessagesTests(unittest.TestCase):
 
         self.assertEqual(texts, ["Hello\tthere", "Claim your prize"])
         self.assertEqual(labels, ["ham", "spam"])
+
+    def test_loads_smishing_csv_and_prefers_translation(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            dataset = Path(directory) / "smishing.csv"
+            dataset.write_text(
+                "text,translation,scam_type\n"
+                '"Hola","Hello","banking"\n'
+                '"Original English","","delivery"\n',
+                encoding="utf-8",
+            )
+
+            texts, labels = load_smishing_messages(dataset)
+
+        self.assertEqual(texts, ["Hello", "Original English"])
+        self.assertEqual(labels, ["spam", "spam"])
+
+    def test_loads_mendeley_csv_and_maps_spam_labels(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            dataset = Path(directory) / "mendeley.csv"
+            dataset.write_text(
+                "LABEL,TEXT,URL,EMAIL,PHONE\n"
+                'ham,"A normal message",No,No,No\n'
+                'Spam,"An unwanted offer",Yes,No,No\n'
+                'smishing,"A suspicious notice",Yes,No,No\n',
+                encoding="utf-8",
+            )
+
+            texts, labels = load_mendeley_messages(dataset)
+
+        self.assertEqual(texts, ["A normal message", "An unwanted offer", "A suspicious notice"])
+        self.assertEqual(labels, ["ham", "spam", "spam"])
+
+    def test_loads_multilingual_ham_spam_labels_and_ignores_sparse_columns(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            dataset = Path(directory) / "multilingual.csv"
+            dataset.write_text(
+                "label,text,lang,URL,,,,\n"
+                'ham,"A normal message",en,No,,,\n'
+                'SPAM,"An unwanted message",fr,Yes,,,\n',
+                encoding="utf-8",
+            )
+
+            texts, labels = load_multilingual_messages(dataset)
+
+        self.assertEqual(texts, ["A normal message", "An unwanted message"])
+        self.assertEqual(labels, ["ham", "spam"])
+
+    def test_rejects_unknown_multilingual_labels(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            dataset = Path(directory) / "multilingual.csv"
+            dataset.write_text(
+                "label,text\n"
+                'unsure,"An uncertain message"\n',
+                encoding="utf-8",
+            )
+
+            with self.assertRaisesRegex(ValueError, "Invalid label"):
+                load_multilingual_messages(dataset)
+
+    def test_warns_and_skips_empty_multilingual_message(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            dataset = Path(directory) / "multilingual.csv"
+            dataset.write_text(
+                "label,text\n"
+                'ham,""\n'
+                'spam,"A labeled message"\n',
+                encoding="utf-8",
+            )
+
+            with warnings.catch_warnings(record=True) as caught:
+                warnings.simplefilter("always")
+                texts, labels = load_multilingual_messages(dataset)
+
+        self.assertEqual(texts, ["A labeled message"])
+        self.assertEqual(labels, ["spam"])
+        self.assertEqual(len(caught), 1)
+        self.assertIn("Skipping empty message", str(caught[0].message))
+
+    def test_rejects_unknown_mendeley_labels(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            dataset = Path(directory) / "mendeley.csv"
+            dataset.write_text(
+                "LABEL,TEXT\n"
+                'unknown,"A message with an unknown label"\n',
+                encoding="utf-8",
+            )
+
+            with self.assertRaisesRegex(ValueError, "Invalid label"):
+                load_mendeley_messages(dataset)
+
+    def test_loads_only_human_reviewed_nus_messages(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            dataset = Path(directory) / "nus-review.csv"
+            dataset.write_text(
+                "message_id,text,reviewed_label\n"
+                '1,"Unreviewed message",\n'
+                '2,"Confirmed normal message",ham\n'
+                '3,"Confirmed scam message",spam\n',
+                encoding="utf-8",
+            )
+
+            texts, labels = load_reviewed_nus_messages(dataset)
+
+        self.assertEqual(texts, ["Confirmed normal message", "Confirmed scam message"])
+        self.assertEqual(labels, ["ham", "spam"])
+
+    def test_rejects_invalid_human_reviewed_nus_labels(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            dataset = Path(directory) / "nus-review.csv"
+            dataset.write_text(
+                "message_id,text,reviewed_label\n"
+                '1,"Uncertain message",unsure\n',
+                encoding="utf-8",
+            )
+
+            with self.assertRaisesRegex(ValueError, "Invalid reviewed label"):
+                load_reviewed_nus_messages(dataset)
+
+    def test_combined_training_data_deduplicates_and_drops_conflicting_labels(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            ham = root / "ham.tsv"
+            smishing = root / "smishing.csv"
+            ham.write_text("ham\tA legitimate note\nspam\tAn existing spam\n", encoding="utf-8")
+            smishing.write_text(
+                "text,translation\n"
+                '"A LEGITIMATE   note",\n'
+                '"An additional smishing message",\n'
+                '"An existing spam",\n',
+                encoding="utf-8",
+            )
+
+            texts, labels = load_training_messages(ham, smishing, None, None, None)
+
+        self.assertEqual(
+            dict(zip(texts, labels)),
+            {
+                "An additional smishing message": "spam",
+                "An existing spam": "spam",
+            },
+        )
 
     def test_rejects_invalid_rows(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -98,22 +249,20 @@ class BoundaryScoreModel:
 class AnalyzeMessageTests(unittest.TestCase):
     def setUp(self) -> None:
         self.temp_dir = tempfile.TemporaryDirectory()
-        root = Path(self.temp_dir.name)
-        self.feedback_path = root / "feedback.jsonl"
-        self.model_path = root / "model.joblib"
-        self.data_path = root / "messages.tsv"
-        rows = [f"ham\tHello friend how are you today {index}\n" for index in range(12)]
-        rows.extend(f"spam\tClaim a free prize now today {index}\n" for index in range(12))
-        self.data_path.write_text("".join(rows), encoding="utf-8")
         self.client = create_app(
-            model_path=self.model_path,
             model=FakeModel(),
-            feedback_path=self.feedback_path,
-            data_path=self.data_path,
         ).test_client()
 
     def tearDown(self) -> None:
         self.temp_dir.cleanup()
+
+    def test_home_page_exposes_accessible_theme_toggle(self) -> None:
+        response = self.client.get("/")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b'id="theme-toggle"', response.data)
+        self.assertIn(b"Switch to dark mode", response.data)
+        self.assertIn(b'aria-pressed="false"', response.data)
 
     def test_returns_model_screening_result(self) -> None:
         response = self.client.post("/api/analyze", json={"message": "Claim your prize"})
@@ -141,58 +290,53 @@ class AnalyzeMessageTests(unittest.TestCase):
 
         self.assertEqual(response.status_code, 200)
 
-    def test_records_feedback_and_trains_immediately(self) -> None:
+    def test_generates_distinct_non_deployable_examples(self) -> None:
+        first_response = self.client.post(
+            "/api/generate-sample", json={"sample_type": "fraud"}
+        )
+        first = first_response.get_json()["message"]
+        second_response = self.client.post(
+            "/api/generate-sample", json={"sample_type": "fraud"}
+        ).get_json()
+
+        self.assertNotEqual(first, second_response["message"])
+        self.assertEqual(first_response.status_code, 200)
+        self.assertEqual(
+            first_response.get_json()["notice"],
+            "SIMULATED - DO NOT SEND. Fictional sample; links use the reserved .invalid domain.",
+        )
+        self.assertEqual(first_response.get_json()["ground_truth"], "fraudulent")
+        self.assertEqual(first_response.get_json()["detector_verdict"], "non-fraudulent")
+        self.assertFalse(first_response.get_json()["matches_ground_truth"])
+        self.assertNotIn("[", first)
+        self.assertNotIn("]", first)
+        self.assertIn(".invalid", first)
+        self.assertNotIn("SIMULATED - DO NOT SEND", first)
+
+    def test_generates_legitimate_sample_and_reports_detector_agreement(self) -> None:
         response = self.client.post(
-            "/api/feedback",
-            json={"actual_status": "fraud", "prediction": "spam", "message": "Private message"},
+            "/api/generate-sample", json={"sample_type": "legitimate"}
         )
 
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.get_json()["trained_feedback_examples"], 1)
-        self.assertTrue(self.model_path.is_file())
-        record = json.loads(self.feedback_path.read_text(encoding="utf-8"))
-        self.assertEqual(record["user_label"], "fraud")
-        self.assertEqual(record["model_prediction"], "spam")
-        self.assertEqual(record["message"], "Private message")
-        self.assertTrue(record["approved"])
-        followup = self.client.post("/api/analyze", json={"message": "Private message"})
-        trained_model = joblib.load(self.model_path)
-        expected_predictions, expected_scores = predict_messages(trained_model, ["Private message"])
-        self.assertEqual(followup.get_json()["prediction"], expected_predictions[0])
-        self.assertEqual(followup.get_json()["spam_score"], expected_scores[0])
+        self.assertEqual(response.get_json()["ground_truth"], "non-fraudulent")
+        self.assertEqual(response.get_json()["detector_verdict"], "non-fraudulent")
+        self.assertTrue(response.get_json()["matches_ground_truth"])
 
-    def test_each_feedback_retrains_using_accumulated_labels(self) -> None:
-        first = self.client.post(
-            "/api/feedback",
-            json={"actual_status": "fraud", "prediction": "ham", "message": "A test fraud message"},
-        )
-        second = self.client.post(
-            "/api/feedback",
-            json={"actual_status": "legitimate", "prediction": "spam", "message": "A test legitimate message"},
-        )
-
-        self.assertEqual(first.status_code, 200)
-        self.assertEqual(second.status_code, 200)
-        self.assertEqual(second.get_json()["trained_feedback_examples"], 2)
-        records = self.feedback_path.read_text(encoding="utf-8").splitlines()
-        self.assertEqual(len(records), 2)
-
-    def test_generates_distinct_non_deployable_examples(self) -> None:
-        first = self.client.post("/api/generate-sample").get_json()["message"]
-        second = self.client.post("/api/generate-sample").get_json()["message"]
-
-        self.assertNotEqual(first, second)
-        self.assertIn("SIMULATED - DO NOT SEND", first)
-        self.assertIn("[SAFE TEST LINK]", first)
-
-    def test_rejects_invalid_feedback(self) -> None:
+    def test_rejects_unknown_generated_sample_type(self) -> None:
         response = self.client.post(
-            "/api/feedback",
-            json={"actual_status": "unsure", "prediction": "spam"},
+            "/api/generate-sample", json={"sample_type": "unknown"}
         )
 
         self.assertEqual(response.status_code, 400)
-        self.assertFalse(self.feedback_path.exists())
+
+    def test_feedback_endpoint_is_removed(self) -> None:
+        response = self.client.post(
+            "/api/feedback",
+            json={"actual_status": "fraudulent"},
+        )
+
+        self.assertEqual(response.status_code, 404)
 
 
 class FraudBattleTests(unittest.TestCase):
@@ -204,7 +348,8 @@ class FraudBattleTests(unittest.TestCase):
         self.assertEqual(scams, repeated_scams)
         self.assertEqual(len(set(scams)), 8)
         self.assertEqual(len(legitimate), 8)
-        self.assertTrue(all("SIMULATED - DO NOT SEND" in message for message in scams + legitimate))
+        self.assertTrue(all("[" not in message and "]" not in message for message in scams + legitimate))
+        self.assertTrue(all(".invalid" in message for message in scams))
 
     def test_battle_reports_missed_scams_and_no_false_alarms(self) -> None:
         result = evaluate_battle(AlwaysHamModel(), examples_per_side=6, seed=9)
@@ -239,12 +384,32 @@ class TrainReviewedFeedbackTests(unittest.TestCase):
             data_path = Path(directory) / "messages.tsv"
             model_path = Path(directory) / "model.joblib"
             feedback_path = Path(directory) / "feedback.jsonl"
+            smishing_path = Path(directory) / "smishing.csv"
+            mendeley_path = Path(directory) / "mendeley.csv"
+            nus_path = Path(directory) / "nus-review.csv"
             rows = [f"ham\tHello friend, how are you today {index}\n" for index in range(12)]
             rows.extend(
                 f"spam\tClaim a free prize now at the safe test link {index}\n"
                 for index in range(12)
             )
             data_path.write_text("".join(rows), encoding="utf-8")
+            smishing_path.write_text(
+                "text,translation\n"
+                '"A fictional smishing notice",\n'
+                '"Another fictional smishing notice",\n',
+                encoding="utf-8",
+            )
+            mendeley_path.write_text(
+                "LABEL,TEXT\n"
+                'ham,"A fictional legitimate note"\n'
+                'smishing,"A fictional smishing note"\n',
+                encoding="utf-8",
+            )
+            nus_path.write_text(
+                "message_id,text,reviewed_label\n"
+                '1,"A manually reviewed legitimate SMS",ham\n',
+                encoding="utf-8",
+            )
             feedback_path.write_text(
                 json.dumps({
                     "message": "A reviewed fictional warning [SAFE TEST LINK]",
@@ -254,7 +419,16 @@ class TrainReviewedFeedbackTests(unittest.TestCase):
                 encoding="utf-8",
             )
 
-            train(data_path, model_path, feedback_path, include_reviewed_feedback=True)
+            train(
+                data_path,
+                model_path,
+                feedback_path,
+                include_reviewed_feedback=True,
+                smishing_data_path=smishing_path,
+                mendeley_data_path=mendeley_path,
+                nus_reviewed_data_path=nus_path,
+                multilingual_data_path=None,
+            )
 
             self.assertTrue(model_path.is_file())
 

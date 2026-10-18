@@ -9,43 +9,72 @@ const scoreValue = document.querySelector("#score-value");
 const thresholdValue = document.querySelector("#threshold-value");
 const scoreTrack = document.querySelector(".score-track");
 const scoreFill = document.querySelector("#score-fill");
-const feedbackPanel = document.querySelector("#feedback-panel");
-const feedbackStatus = document.querySelector("#feedback-status");
-const feedbackChoices = document.querySelectorAll(".feedback-choice");
-const generateButton = document.querySelector("#generate-button");
+const generateButtons = document.querySelectorAll(".generate-button");
 const generationStatus = document.querySelector("#generation-status");
-let currentPrediction = null;
-let currentMessage = "";
+const themeToggle = document.querySelector("#theme-toggle");
+const themeColor = document.querySelector('meta[name="theme-color"]');
 
-generateButton.addEventListener("click", async () => {
-  generateButton.disabled = true;
-  result.hidden = true;
-  feedbackPanel.hidden = true;
-  currentPrediction = null;
-  currentMessage = "";
-  generationStatus.textContent = "Creating a fictional test example...";
+function applyTheme(theme) {
+  const isDark = theme === "dark";
+  document.documentElement.dataset.theme = isDark ? "dark" : "light";
+  themeToggle.textContent = `Switch to ${isDark ? "light" : "dark"} mode`;
+  themeToggle.setAttribute("aria-pressed", String(isDark));
+  themeColor.content = isDark ? "#17221e" : "#f3f6f1";
+}
+
+try {
+  applyTheme(localStorage.getItem("scamsheild-theme") || "light");
+} catch (error) {
+  console.warn("Could not load the saved appearance preference.", error);
+  applyTheme("light");
+}
+
+themeToggle.addEventListener("click", () => {
+  const nextTheme = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
+  applyTheme(nextTheme);
   try {
-    const response = await fetch("/api/generate-sample", { method: "POST" });
-    const data = await response.json();
-    if (!response.ok) throw new Error(data.error || "A test example could not be generated.");
-    messageField.value = data.message;
-    messageField.dispatchEvent(new Event("input", { bubbles: true }));
-    generationStatus.textContent = "Fictional sample generated. Review it, screen it, then rate the result.";
+    localStorage.setItem("scamsheild-theme", nextTheme);
   } catch (error) {
-    generationStatus.textContent = error.message;
-  } finally {
-    generateButton.disabled = false;
+    console.warn("Could not save the appearance preference.", error);
   }
+});
+
+generateButtons.forEach((generateButton) => {
+  generateButton.addEventListener("click", async () => {
+    generateButtons.forEach((button) => { button.disabled = true; });
+    result.hidden = true;
+    generationStatus.textContent = "Creating and independently screening a fictional test example...";
+    try {
+      const response = await fetch("/api/generate-sample", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sample_type: generateButton.dataset.sampleType }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "A test example could not be generated.");
+      messageField.value = data.message;
+      messageField.dispatchEvent(new Event("input", { bubbles: true }));
+      result.hidden = false;
+      result.dataset.kind = data.prediction;
+      verdict.textContent = data.detector_verdict === "fraudulent" ? "Likely spam" : "No spam detected";
+      detail.textContent = `Generated sample label: ${data.ground_truth}. Independent detector decision: ${data.detector_verdict}. ${
+        data.matches_ground_truth ? "The detector agrees with the synthetic label." : "The detector does not match the synthetic label."
+      }`;
+      scoreValue.textContent = `${Math.round(data.spam_score * 100)}%`;
+      thresholdValue.textContent = `${Math.round(data.spam_threshold * 100)}%`;
+      scoreTrack.setAttribute("aria-valuenow", String(Math.round(data.spam_score * 100)));
+      scoreFill.style.width = `${Math.round(data.spam_score * 100)}%`;
+      generationStatus.textContent = data.notice;
+    } catch (error) {
+      generationStatus.textContent = error.message;
+    } finally {
+      generateButtons.forEach((button) => { button.disabled = false; });
+    }
+  });
 });
 
 messageField.addEventListener("input", () => {
   count.textContent = `${messageField.value.length.toLocaleString()} / 5,000`;
-  if (currentPrediction && messageField.value !== currentMessage) {
-    result.hidden = true;
-    feedbackPanel.hidden = true;
-    currentPrediction = null;
-    currentMessage = "";
-  }
 });
 
 form.addEventListener("submit", async (event) => {
@@ -53,10 +82,6 @@ form.addEventListener("submit", async (event) => {
   button.disabled = true;
   button.textContent = "Screening...";
   result.hidden = false;
-  feedbackPanel.hidden = true;
-  feedbackStatus.textContent = "";
-  currentPrediction = null;
-  currentMessage = "";
   result.dataset.kind = "pending";
   verdict.textContent = "Checking the message";
   detail.textContent = "Comparing its text with patterns learned from SMS spam examples.";
@@ -72,18 +97,14 @@ form.addEventListener("submit", async (event) => {
 
     const percentage = Math.round(data.spam_score * 100);
     result.dataset.kind = data.prediction;
-    currentPrediction = data.prediction;
-    currentMessage = messageField.value;
     verdict.textContent = data.verdict;
     detail.textContent = data.prediction === "spam"
-      ? "This message has patterns the model associates with SMS spam."
-      : "The model did not find strong patterns associated with SMS spam.";
+      ? "This message has patterns associated with SMS spam. Smishing (phishing by text) is grouped into the spam class; it is not a separate prediction."
+      : "The model did not find strong patterns associated with SMS spam or smishing. A clean result does not guarantee that a message is safe.";
     scoreValue.textContent = `${percentage}%`;
     thresholdValue.textContent = `${Math.round(data.spam_threshold * 100)}%`;
     scoreTrack.setAttribute("aria-valuenow", String(percentage));
     scoreFill.style.width = `${percentage}%`;
-    feedbackChoices.forEach((choice) => { choice.disabled = false; });
-    feedbackPanel.hidden = false;
   } catch (error) {
     result.dataset.kind = "error";
     verdict.textContent = "Could not screen this message";
@@ -95,30 +116,4 @@ form.addEventListener("submit", async (event) => {
     button.disabled = false;
     button.innerHTML = 'Screen message <span aria-hidden="true">&#8594;</span>';
   }
-});
-
-feedbackChoices.forEach((choice) => {
-  choice.addEventListener("click", async () => {
-    if (!currentPrediction) return;
-
-    feedbackChoices.forEach((button) => { button.disabled = true; });
-    feedbackStatus.textContent = "Saving your feedback...";
-    try {
-      const response = await fetch("/api/feedback", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          actual_status: choice.dataset.status,
-          prediction: currentPrediction,
-          message: currentMessage,
-        }),
-      });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error || "Feedback could not be saved.");
-      feedbackStatus.textContent = data.message;
-    } catch (error) {
-      feedbackStatus.textContent = error.message;
-      feedbackChoices.forEach((button) => { button.disabled = false; });
-    }
-  });
 });

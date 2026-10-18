@@ -14,14 +14,19 @@
         <span class="wordmark-mark" aria-hidden="true">S</span>
         <span>ScamSheild</span>
       </a>
-      <div class="model-status"><span class="status-dot"></span> SMS model ready</div>
+      <div class="header-actions">
+        <button id="theme-toggle" class="secondary-button theme-toggle" type="button" aria-pressed="false">
+          Switch to dark mode
+        </button>
+        <div class="model-status"><span class="status-dot"></span> SMS model ready</div>
+      </div>
     </header>
 
     <main>
       <section class="intro" aria-labelledby="page-title">
         <p class="eyebrow">MESSAGE CHECK <span> / </span> 01</p>
         <h1 id="page-title">A second look<br>at that text.</h1>
-        <p class="intro-copy">Paste a suspicious SMS below. The model looks for patterns associated with spam and gives you a screening signal.</p>
+        <p class="intro-copy">Paste a suspicious SMS below. Smishing is phishing by text message; the model screens for spam and smishing patterns and gives you a screening signal.</p>
       </section>
 
       <div class="workspace-grid">
@@ -36,7 +41,8 @@
             <div class="form-footer">
               <span id="character-count" class="character-count">0 / 5,000</span>
               <div class="form-actions">
-                <button id="generate-button" class="secondary-button" type="button">Generate test message</button>
+                <button class="secondary-button generate-button" data-sample-type="fraud" type="button">Generate fraudulent sample</button>
+                <button class="secondary-button generate-button" data-sample-type="legitimate" type="button">Generate non-fraudulent sample</button>
                 <button id="screen-button" type="submit">Screen message <span aria-hidden="true">&#8594;</span></button>
               </div>
             </div>
@@ -62,26 +68,17 @@
               <span id="score-fill"></span>
             </div>
             <p class="result-caveat">This score is not a probability of fraud or a guarantee. Verify unexpected requests through a trusted channel.</p>
-            <div id="feedback-panel" class="feedback-panel" hidden>
-              <h3>Was this message actually fraudulent?</h3>
-              <p>Your rating retrains the local classifier immediately. The message is saved locally; incorrect labels can reduce accuracy.</p>
-              <div class="feedback-actions">
-                <button class="feedback-choice" type="button" data-status="fraud">Yes, fraudulent</button>
-                <button class="feedback-choice" type="button" data-status="legitimate">No, legitimate</button>
-              </div>
-              <p id="feedback-status" class="feedback-status" aria-live="polite"></p>
-            </div>
           </section>
         </section>
 
         <aside class="model-notes" aria-labelledby="notes-title">
           <p class="eyebrow">BEFORE YOU RELY ON IT</p>
           <h2 id="notes-title">What this check can tell you</h2>
-          <p>This prototype uses a text classifier trained on the UCI SMS Spam Collection. It can spot familiar spam patterns, but it was not trained to detect every kind of fraud.</p>
+          <p>This prototype is trained on SMS spam and smishing datasets. Smishing examples are grouped into the model’s “spam” class; it does not return a separate smishing label and may miss other kinds of fraud.</p>
           <div class="note-rule"></div>
           <h3>Keep your guard up</h3>
           <p>A clean result does not make a link or payment request safe. Don’t paste passwords, one-time codes, or sensitive personal details. Verify urgent requests independently.</p>
-          <div class="dataset-mark"><span>MODEL</span><span>SMS SPAM / HAM</span></div>
+          <div class="dataset-mark"><span>MODEL</span><span>SPAM / SMISHING / HAM</span></div>
         </aside>
       </div>
     </main>

@@ -14,10 +14,14 @@ from fraud_simulator import FRAUD_MESSAGES, LEGITIMATE_MESSAGES, generate_fraud_
 from sms_spam import (
     DEFAULT_DATA,
     DEFAULT_FEEDBACK,
+    DEFAULT_MENDELEY_DATA,
+    DEFAULT_MULTILINGUAL_DATA,
+    DEFAULT_NUS_REVIEWED_DATA,
     DEFAULT_MODEL,
+    DEFAULT_SMISHING_DATA,
     DEFAULT_SPAM_THRESHOLD,
     create_pipeline,
-    load_messages,
+    load_training_messages,
     load_reviewed_feedback,
     predict_messages,
 )
@@ -105,6 +109,10 @@ def split_self_play_examples(
 def train_battle_candidate(
     source_model_path: Path = DEFAULT_MODEL,
     data_path: Path = DEFAULT_DATA,
+    smishing_data_path: Path | None = DEFAULT_SMISHING_DATA,
+    mendeley_data_path: Path | None = DEFAULT_MENDELEY_DATA,
+    nus_reviewed_data_path: Path | None = DEFAULT_NUS_REVIEWED_DATA,
+    multilingual_data_path: Path | None = DEFAULT_MULTILINGUAL_DATA,
     output_model_path: Path = DEFAULT_CANDIDATE_MODEL,
     feedback_path: Path = DEFAULT_FEEDBACK,
     rounds: int = 3,
@@ -127,7 +135,13 @@ def train_battle_candidate(
     baseline_model = joblib.load(source_model_path)
     history = [evaluate_messages(baseline_model, holdout_scams, holdout_legitimate, spam_threshold)]
 
-    base_texts, base_labels = load_messages(data_path)
+    base_texts, base_labels = load_training_messages(
+        data_path,
+        smishing_data_path,
+        mendeley_data_path,
+        nus_reviewed_data_path,
+        multilingual_data_path,
+    )
     if include_reviewed_feedback:
         feedback_texts, feedback_labels = load_reviewed_feedback(feedback_path)
         base_texts.extend(feedback_texts)
@@ -177,6 +191,10 @@ def main() -> int:
     parser.add_argument("--examples-per-round", type=int, default=20)
     parser.add_argument("--holdout-per-class", type=int, default=20)
     parser.add_argument("--data", type=Path, default=DEFAULT_DATA)
+    parser.add_argument("--smishing-data", type=Path, default=DEFAULT_SMISHING_DATA)
+    parser.add_argument("--mendeley-data", type=Path, default=DEFAULT_MENDELEY_DATA)
+    parser.add_argument("--nus-reviewed-data", type=Path, default=DEFAULT_NUS_REVIEWED_DATA)
+    parser.add_argument("--multilingual-data", type=Path, default=DEFAULT_MULTILINGUAL_DATA)
     parser.add_argument("--feedback", type=Path, default=DEFAULT_FEEDBACK)
     parser.add_argument("--include-reviewed-feedback", action="store_true")
     parser.add_argument("--output", type=Path, default=DEFAULT_CANDIDATE_MODEL)
@@ -187,6 +205,10 @@ def main() -> int:
             history = train_battle_candidate(
                 source_model_path=Path(args.model),
                 data_path=args.data,
+                smishing_data_path=args.smishing_data,
+                mendeley_data_path=args.mendeley_data,
+                nus_reviewed_data_path=args.nus_reviewed_data,
+                multilingual_data_path=args.multilingual_data,
                 output_model_path=args.output,
                 feedback_path=args.feedback,
                 rounds=args.rounds,
